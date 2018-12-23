@@ -1,0 +1,20 @@
+---
+title: "Stat 151A Homework 2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 4
+
+```{r Q4}
+dat <- read.csv('bodyfat.csv')
+head(dat)
+dat$dummy <- (dat$Age + 10*dat$Weight + 3*dat$Height)
+
+summary(lm(bodyfat ~ Age + Weight + Height + I(Age + 10*Weight +3*Height), data = dat))
+```
+
+

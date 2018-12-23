@@ -1,0 +1,156 @@
+---
+title: "Stat 151A Homework 4"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(faraway)
+library(MASS)
+library(modelr)
+library(purrr)
+```
+
+```{r}
+set.seed(123)
+M = 1000
+T = c()
+for (i in 1:M){
+  T[i] <- sd(rnorm(100))
+}
+hist(T)
+CI <- quantile(T, probs = c(0.025, 0.975))
+CI
+
+sum(T < CI[1] | T > CI[2])
+```
+
+```{r}
+twoYear <- lm(lwage~jc+univ+exper, data = data)
+summary(twoYear)
+twoYear_2 <- lm(lwage~ I(jc+univ) + exper, data = data)
+
+anova(twoYear_2, twoYear)
+
+data$dummy <- data$jc-data$univ
+obs_t <- lm(lwage ~ dummy+exper, data = data)
+summary(obs_t)
+
+perms <- permute(data,  M, dummy)
+
+models <- map(perms$perm, ~ lm(lwage ~ dummy+exper, data = .)$coefficients[2])
+models2 <- map(perms$perm, ~ sqrt(diag(vcov(lm(lwage ~ dummy+exper, data = .)))))
+st_error_perm <- lapply(models2, function (x) x['dummy'])
+models <- unlist(models, use.names=FALSE)
+st_error_perm <- unlist(st_error_perm, use.names = FALSE)
+
+hist(models/st_error_perm)
+
+
+residuals <- resid(twoYear)
+number <- length(resid(twoYear))
+x <- model.matrix(twoYear)
+betas <- twoYear$coefficients
+x_beta <- x %*% betas
+beta1 <- c()
+beta2 <- c()
+
+for (i in 1:M){
+ data$new_Y <- x_beta + sample(resid(twoYear), size = number, replace = TRUE)
+ boot_model <- lm(new_Y~jc+univ+exper, data = data)
+ beta1[i] <- betas[2]-boot_model$coefficients[2]
+ beta2[i] <- betas[3]-boot_model$coefficients[3]
+}
+diff_beta <- beta1-beta2
+twoYear$coefficients[2]-twoYear$coefficients[3]+1.96*sd(diff_beta)
+twoYear$coefficients[2]-twoYear$coefficients[3]-1.96*sd(diff_beta)
+```
+
+
+```{r}
+model <- lm(sr~pop15+pop75+dpi+ddpi, data = savings)
+summary(model)
+
+residuals <- resid(model)
+number <- length(resid(model))
+x <- model.matrix(model)
+betas <- model$coefficients
+x_beta <- x %*% betas
+beta1 <- c()
+beta2 <- c()
+beta3 <- c()
+beta4 <- c()
+
+for (i in 1:M){
+ savings$new_Y <- x_beta + sample(resid(model), size = number, replace = TRUE)
+ boot_model <- lm(new_Y~pop15+pop75+dpi+ddpi, data = savings)
+ beta1[i] <- betas[2]-boot_model$coefficients[2]
+ beta2[i] <- betas[3]-boot_model$coefficients[3]
+ beta3[i] <- betas[4]-boot_model$coefficients[4]
+ beta4[i] <- betas[5]-boot_model$coefficients[5]
+}
+sd(beta1)
+sd(beta2)
+sd(beta3)
+sd(beta4)
+
+```
+
+```{r}
+bodyFat <- read.csv('Bodyfat.csv')
+
+fat_model <- lm(bodyfat~Age+Weight+Height+Thigh, data = bodyFat)
+
+plot(fat_model$residuals, fat_model$fitted.values)
+plot(studres(fat_model), fat_model$fitted.values)
+plot(fat_model$residuals,stdres(fat_model))
+
+#Predicted Residuals
+pred_res <- fat_model$residuals/(1-hatvalues(fat_model))
+
+plot(pred_res, fat_model$fitted.values)
+plot(fat_model$residuals, pred_res)
+plot(fat_model$residuals, hatvalues(fat_model))
+plot(pred_res, studres(fat_model))
+plot(stdres(fat_model), studres(fat_model))
+
+#Cook's Distance
+cook <- cooks.distance(fat_model)
+plot(1:252, cook)
+```
+
+```{r}
+#P-values
+p_vals <- c()
+jack_res <- studres(fat_model)
+for (i in 1:252){
+  if (jack_res[i]<0){
+    p_vals[i] <- 2*pt(jack_res[i], df=246, lower.tail = TRUE)
+  }
+  else{
+    p_vals[i] <- 2*pt(jack_res[i], df=246, lower.tail = FALSE)
+  }
+}
+head(p_vals)
+plot(1:252, p_vals)
+abline(h = 0.05, col = 'blue')
+
+for (i in 1:252){
+  if (p_vals[i]<0.05/252){
+    print(i)
+  }
+}
+
+bodyFat_adj <- bodyFat[-42,]
+summary(fat_model)
+summary(lm(bodyfat~Age+Weight+Height+Thigh, data = bodyFat_adj))
+```
+
+
+
+
+
+

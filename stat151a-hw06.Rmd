@@ -1,0 +1,215 @@
+---
+title: "Stat 151A - Homework 6"
+author: "Nicholas Lai"
+date: "November 21, 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(titanic)
+```
+##Question 1
+
+```{r}
+Train <- titanic::titanic_train
+Test <- titanic::titanic_test
+```
+
+The Data Has missing values for age, so I replaced them with the mean of their respective datasets.
+
+```{r}
+Train$Age[is.na(Train$Age)] = mean(Train$Age, na.rm = TRUE)
+Test$Age[is.na(Test$Age)] = mean(Test$Age, na.rm = TRUE)
+```
+
+There are some variables that have no real useful interpretation for a glm, so I remove them:
+
+```{r}
+bad = c("PassengerId","Name","Ticket","Embarked","Cabin")
+Train = Train[,!(names(Train) %in% bad)]
+```
+
+I perform Backwards Selection based on p-values:
+
+```{r}
+TitanicLog1 = glm(Survived~., data = Train, family = binomial)
+summary(TitanicLog1)
+
+TitanicLog2 = glm(Survived ~ . - Parch, data = Train, family = binomial)
+summary(TitanicLog2)
+
+TitanicLog3 = glm(Survived ~ . - Parch - Fare, data = Train, family = binomial)
+summary(TitanicLog3)
+```
+
+We arrive at a model with 4 parameters: Passenger Class, Sex, Age, and number of siblings/spouses aboard. All the coefficients of this model are negative, suggesting that an increase in age, number of family members, Class(higher classes are poorer), and Sex(male is 1, so it's bad to be male on the Titanic). In particular, being male and being from a lower class are the most powerful predictors of death, influencing the prediction the most in the 0 direction.
+
+```{r}
+predictTest = predict(TitanicLog3, type = "response", newdata = Test)
+
+Test$Survived = as.numeric(predictTest >= 0.5)
+
+Predictions = data.frame(Test[c("PassengerId","Survived")])
+write.csv(file = "TitanicPred", x = Predictions, row.names = FALSE)
+
+```
+
+Prediction Error (According to Kaggle): 0.74641
+
+##Question 2
+$\hat{p}$ is a function of the projection of Y onto X defined by the logistic model. Therefore, $Y-\hat{p}$ denotes the component of Y that belongs in the orthogonal space of X
+
+##Question 3
+
+###(a)
+
+_Standard Error of the intercept estimate:_
+
+Following from the z-test statistic:
+$$\frac{\hat{\beta_{0}}}{\hat{s_{0}}} = z_{0}$$
+$$\frac{0.6864}{\hat{s_{0}}} = 0.313 $$
+$$\hat{s_{0}} = \frac{0.6864}{0.313} = 2.192$$
+_Standard Error of the estimate of the log(distance) coefficient:_
+
+Analagously to above:
+$$\frac{\hat{\beta_{1}}}{\hat{s_{1}}} = z_{1}$$
+$$\frac{-0.9050}{\hat{s_{1}}} = -4.349 $$
+$$\hat{s_{1}} = \frac{-0.9050}{-4.349} = 0.208$$
+
+_Null Deviance:_
+
+$$N.Dev = -2(n\bar{y}log(\bar{y}) + n(1-\bar{y})log(1-\bar{y}))$$
+From the givens in the question, we know that of the 212 observations, 79 of the responses equal 1 and the rest equal 0. Therefore:
+
+$$\bar{y} = \frac{79}{212} = 0.373$$
+$$N.Dev = -2(212(0.373)log(0.373) + 212(1-0.373)log(1-0.373))$$
+$$N.Dev = 280.1$$
+_Null Deviance Degrees of Freedom:_
+
+The Null model contains only the intercept, so it has no parameters. Therefore it has $n - 1$ degrees of freedom:
+$$df = n - 1 = 211$$
+
+_Residual Deviance_
+
+Residual deviance is related to AIC thusly:
+
+$$ R.Dev=AIC-2(1+p)$$
+Where $p$ is the number of parameters in our model. Therefore:
+$$R.Dev=222.18 - 8 = 214.18$$
+_Residual Deviance Degrees of Freedom:_
+
+The Residual Deviance is a measure of our model, which has degrees of freedom:
+
+$$df = n-p-1 = 212-3-1 = 208$$
+
+_The log(NoOfPools), Intercept cross term_
+
+$X^{T}WX$ is symmetric, so:
+$$X^{T}WX_{31}=X^{T}WX_{13}=-0.255928180$$
+
+_The meanmin coefficient variance_
+
+The diagonal entries of $X^{T}WX$, $d_{ii}$ are the variances of the $i$th coefficients respectively, so 
+
+$$d_{44} = \hat{s_{3}}^2 = 0.098$$
+
+###(b)
+
+Directly from our logistic model:
+
+$$log(\frac{\hat{p}}{1-\hat{p}}) = \beta_{0}+\beta_{1}log(distance) + \beta_{2}log(NoOfPools)+\beta_{3}meanmin$$
+$$log(\frac{\hat{p}}{1-\hat{p}}) = 0.6864+(-0.9050)log(265) + (0.5027)log(26)+(1.1153)3.5$$
+$$log(\frac{\hat{p}}{1-\hat{p}}) = 1.178$$
+$$\frac{\hat{p}}{1-\hat{p}} = e^{1.178}$$
+$$\hat{p} = \frac{e^{1.178}}{1 + e^{1.178}} = 0.7646$$
+
+###(c)
+
+The residual deviance would decrease with the inclusion of another variable, `altitude`, as residual deviance depends on how much variance in the data is not explained by the model. The inclusion of an extra parameter will decrease deviance or keep it the same.
+
+The null deviance will stay the same, as it only depends on the data, which remains the same. 
+
+##Question 4
+
+###(a)
+The maximum likelyhood is estimated using newton's method:
+$$\beta^{(m+1)} = \beta^{(m)} - (H\ell(\beta^{(m)})^{-1}\nabla\ell(\beta^{(m)})$$
+The only part of this equation that depends on Y is $\nabla\ell(\beta^{(m)})$, and
+
+$$\nabla\ell(\beta^{(m)}) = X^{T}(Y-p)$$
+Which clearly only depends on $X^{T}Y$, as desired.
+
+###(b)
+By our logistic model:
+$$log\frac{\hat{p_{i}}}{1-\hat{p_{i}}} = \hat{\beta_{0}}+\hat{\beta_{1}}x_{i1}+...+\hat{\beta_{p}}x_{ip}$$
+So a rearrangement yields:
+$$\frac{\hat{p_{i}}}{1-\hat{p_{i}}} =e^{ \hat{\beta_{0}}+\hat{\beta_{1}}x_{i1}+...+\hat{\beta_{p}}x_{ip}}$$
+$$\hat{p_{i}} = \frac{e^{ \hat{\beta_{0}}+\hat{\beta_{1}}x_{i1}+...+\hat{\beta_{p}}x_{ip}}}{1+e^{ \hat{\beta_{0}}+\hat{\beta_{1}}x_{i1}+...+\hat{\beta_{p}}x_{ip}}}$$
+
+###(c)
+
+Since $\hat{p}$ is an unbiased estimator of $y$, this fact immediately follows.
+
+###(d)
+
+The residual deviance is equal to minus 2 times the maximized log likelyhood. Therefore:
+$$R.Dev = -2(\sum_{i} y_{i}log(\hat{p_{i}})+\sum_{i} (1-y_{i})log(1-\hat{p_{i}})) $$
+
+##Question 5
+
+###(a)
+The subtle addition of s does not actually effect the calculation of any of these parameters.
+
+_z-value of intercept:_
+
+$$z_{0} = \frac{\hat{\beta_{0}}}{\hat{s_{0}}}$$
+$$z_{0} = \frac{4.11947}{0.36342} = 11.335$$
+
+_Estimate of beta 4_
+
+$$\beta_{4} = \hat{s_{4}}*z_{4} = 0.02800*12.345 = 0.34566$$
+
+_Null Deviance:_
+
+$$N.Dev = -2(n\bar{y}log(\bar{y}) + n(1-\bar{y})log(1-\bar{y}))$$
+From the givens in the question, we know that of the 4601 observations, 1813 of the responses equal y and the rest equal n. Therefore:
+
+$$\bar{y} = \frac{1813}{4601} = 0.394$$
+$$N.Dev = -2(4601(0.394)log(0.394) + 4601(1-0.394)log(1-0.394))$$
+$$N.Dev = 6170$$
+
+_Null Deviance Degrees of Freedom:_
+
+The Null model contains only the intercept, so it has no parameters. Therefore it has $n - 1$ degrees of freedom:
+$$df = n - 1 = 4600$$
+
+_Residual Deviance Degrees of Freedom:_
+
+The Residual Deviance is a measure of our model, which has degrees of freedom:
+
+$$df = n-p-1 = 4601-6-1 = 4594$$
+
+_AIC:_
+
+AIC is related to Residual deviance thusly:
+
+$$AIC = R.Dev+2(1+p)$$
+Where $p$ is the number of parameters in our model. Therefore:
+$$AIC = 3245.1+2(1+6)=3259.1$$
+
+###(b)
+
+Directly from our logistic model (even though some variables are zero, we cannot ignore them because os s):
+
+$$log(\frac{\hat{p}}{1-\hat{p}}) = \beta_{0}+\beta_{1}log(crl.tot) + \beta_{2}log(dollar+s)+\beta_{3}log(bang + s)+\beta_{4}log(money+s)+\beta_{5}log(n000+s)+\beta_{6}log(make+s)$$
+
+The RHS is just a number. Calculating it yields:
+
+$$log(\frac{\hat{p}}{1-\hat{p}}) = 2.68$$
+$$\frac{\hat{p}}{1-\hat{p}} = e^{2.68}$$
+$$\hat{p} = \frac{e^{2.68}}{1 + e^{2.68}} = 0.936$$
+
+###(c)
+
+AIC (a criteria for selecting models) for a given number of parameters is a function only of a model's residual deviance. Both candidate models in this question have the same number of parameters, so it suffices to select the one with the smaller deviance, M1.

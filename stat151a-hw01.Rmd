@@ -1,0 +1,117 @@
+---
+title: "stat151a-hw01"
+author: "Nicholas Lai"
+date: "August 28, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+dat <- read.csv("PearsonHeightData.txt", sep = "\t")
+
+plot(dat$Father, dat$Son)
+abline(lm(dat$Father~dat$Son), col = "blue")
+abline(lm(dat$Son~dat$Father), col = "red")
+
+```
+
+Red Line: y=ˆβ0+ˆβ1x
+
+Blue line: x= ˆα0+ ˆα1y
+
+```{r}
+load("meap93.RData")
+
+model <- lm(data$math10 ~ data$lnchprg)
+summary(model)
+
+plot(data$lnchprg, data$math10)
+```
+
+```{r}
+model <- lm(data$math10 ~ log(data$expend))
+summary(model)
+
+plot(log(data$expend), data$math10)
+```
+
+```{r}
+library(datasets)
+a <- anscombe
+par(mfrow=c(2,2))
+plot(a$x1,a$y1, main=paste("Dataset One"))
+abline (lm(a$y1 ~ a$x1))
+plot(a$x2,a$y2, main=paste("Dataset Two"))
+abline (lm(a$y2 ~ a$x2))
+plot(a$x3,a$y3, main=paste("Dataset Three"))
+abline (lm(a$y3 ~ a$x3))
+plot(a$x4,a$y4, main=paste("Dataset Four"))
+abline (lm(a$y4 ~ a$x4))
+
+summary(lm(a$y1~a$x1))
+summary(lm(a$y2~a$x2))
+summary(lm(a$y3~a$x3))
+summary(lm(a$y4~a$x4))
+```
+
+```{r}
+n <- 100
+beta0 <- 32
+beta1 <- 0.5
+x <- seq(59, 76, length.out = 100)
+M = 10000
+y <- c()
+
+sim_beta1 <- c()
+sim_beta0 <- c()
+sim_sd_beta1 <- c()
+sim_sd_beta0 <- c()
+
+x[1]
+```
+
+```{r}
+for (j in 1:M){
+  
+for (i in 1:100){
+  if (x[i] <= 65){
+    y[i] <- rnorm(1, beta0+beta1*x[i], 5)
+  }
+  if (x[i]>70){
+    y[i] <- runif(1, beta0+beta1*x[i]-8, beta0+beta1*x[i]+8)
+  }
+  if(x[i]>65&x[i]<=70){
+    y[i] <- beta0+beta1*x[i] + 10*rt(1, 3)
+  }
+}
+sim_beta0[j] <- summary(lm(y~x))$coefficients[1,1]
+sim_beta1[j] <- summary(lm(y~x))$coefficients[2,1]
+sim_sd_beta0[j] <- summary(lm(y~x))$coefficients[1,2]
+sim_sd_beta1[j] <- summary(lm(y~x))$coefficients[2,2]
+}
+
+bias_beta0 <- 0
+bias_beta1 <- 0
+for (i in 1:length(sim_beta0)){
+  bias_beta0 <- bias_beta0+(sim_beta0[i]-beta0)
+}
+bias_beta0/M
+
+for (i in 1:length(sim_beta1)){
+  bias_beta1 <- bias_beta1+(sim_beta1[i]-beta1)
+}
+bias_beta1/M
+```
+
+```{r}
+
+sd(sim_beta0)
+sd(sim_beta1)
+
+hist(sim_sd_beta0)
+hist(sim_sd_beta1)
+
+```
